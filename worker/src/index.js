@@ -42,15 +42,28 @@
 // different knowledge/dispatch backends, as requested.
 // ---------------------------------------------------------------------------
 const TENANTS = {
-  // Demo tenant — replace with the real HVAC company's VAPI phone number
-  'DEMO_PHONE_NUMBER': {
+  // Demo tenant — Dallas, TX placeholder number. Swap for the real
+  // VAPI-provisioned number once purchased (keep the key in sync with
+  // whatever VAPI sends as the "to" number on webhooks/tool calls).
+  '+19726667107': {
     id: 'demo-hvac-co',
     name: 'Demo HVAC Co.',
     crm: 'internal',                 // 'internal' | 'servicetitan' | 'housecallpro' | 'jobber'
     crmConfig: {},                   // api keys/base urls go here per-tenant
-    serviceArea: ['Pittsburgh, PA', 'Tampa, FL'],
+    serviceArea: ['Dallas, TX', 'Fort Worth, TX'],
     emergencyKeywords: ['no heat', 'no ac', 'gas smell', 'gas leak', 'carbon monoxide', 'flooding', 'sparking'],
-    escalationPhone: '+14125551234',
+    escalationPhone: '+12145550911',
+    businessHours: '7am-7pm Mon-Sat',
+  },
+  // Fallback alias so the demo still works if the real number isn't wired up yet
+  'DEMO_PHONE_NUMBER': {
+    id: 'demo-hvac-co',
+    name: 'Demo HVAC Co.',
+    crm: 'internal',
+    crmConfig: {},
+    serviceArea: ['Dallas, TX', 'Fort Worth, TX'],
+    emergencyKeywords: ['no heat', 'no ac', 'gas smell', 'gas leak', 'carbon monoxide', 'flooding', 'sparking'],
+    escalationPhone: '+12145550911',
     businessHours: '7am-7pm Mon-Sat',
   },
   // Example of a second tenant on the same worker, different number + CRM:
