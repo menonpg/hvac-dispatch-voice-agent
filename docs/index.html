@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riley — AI Dispatch Agent for HVAC Companies</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root{--pri:#ff7a1a;--pri2:#e05e00;--navy:#0d1b2a;--navy2:#13273d;--tx:#fff;--tx2:rgba(255,255,255,.65);--bd:rgba(255,122,26,.25);--card:rgba(255,255,255,.06);--ok:#48bb78}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,sans-serif;background:linear-gradient(135deg,var(--navy),var(--navy2));color:var(--tx);min-height:100vh;line-height:1.6}
+  nav{background:rgba(0,0,0,.3);border-bottom:1px solid var(--bd);padding:14px 28px;display:flex;align-items:center;gap:20px}
+  nav .logo{color:var(--pri);font-weight:800;font-size:1.15em;margin-right:auto}
+  nav a{color:var(--tx2);text-decoration:none;font-size:.88em}
+  nav a:hover{color:var(--pri)}
+  .hero{max-width:980px;margin:0 auto;padding:70px 28px 40px;text-align:center}
+  .hero .badge{display:inline-block;background:var(--card);border:1px solid var(--bd);color:var(--pri);font-size:.78em;letter-spacing:.08em;text-transform:uppercase;padding:6px 16px;border-radius:999px;margin-bottom:22px}
+  .hero h1{font-size:clamp(2rem,5vw,3rem);font-weight:800;margin-bottom:18px}
+  .hero h1 span{color:var(--pri)}
+  .hero p{color:var(--tx2);font-size:1.1em;max-width:640px;margin:0 auto 32px}
+  .cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:.9rem 1.8rem;border-radius:8px;font-weight:700;font-size:.95rem;text-decoration:none;transition:transform .15s}
+  .btn-pri{background:var(--pri);color:#1a1005}
+  .btn-pri:hover{background:#ff9240;transform:translateY(-2px)}
+  .btn-ghost{border:1px solid var(--bd);color:var(--tx)}
+  .btn-ghost:hover{border-color:var(--pri);color:var(--pri)}
+
+  section.feature{max-width:1100px;margin:0 auto;padding:50px 28px}
+  .section-title{font-size:1.6em;font-weight:800;text-align:center;margin-bottom:10px}
+  .section-sub{text-align:center;color:var(--tx2);max-width:620px;margin:0 auto 40px}
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:26px}
+  .card .ic{font-size:1.6em;margin-bottom:12px}
+  .card h3{font-size:1.05em;margin-bottom:8px}
+  .card p{color:var(--tx2);font-size:.9em}
+
+  .flow{display:flex;gap:0;flex-wrap:wrap;justify-content:center;max-width:960px;margin:0 auto}
+  .flow-step{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:20px;flex:1;min-width:200px;text-align:center;position:relative}
+  .flow-step .n{width:32px;height:32px;border-radius:50%;background:var(--pri);color:#1a1005;display:flex;align-items:center;justify-content:center;font-weight:800;margin:0 auto 10px}
+  .flow-step h4{font-size:.95em;margin-bottom:6px}
+  .flow-step p{font-size:.82em;color:var(--tx2)}
+
+  .crm-row{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+  .crm-pill{background:var(--card);border:1px solid var(--bd);border-radius:999px;padding:10px 20px;font-size:.88em;font-weight:600}
+
+  footer{text-align:center;padding:40px 20px;color:var(--tx2);font-size:.82em;border-top:1px solid var(--bd);margin-top:40px}
+</style>
+</head>
+<body>
+<nav>
+  <span class="logo">🔥 Riley · AI Dispatch Agent</span>
+  <a href="dashboard.html">Dashboard</a>
+</nav>
+
+<section class="hero">
+  <div class="badge">Live Demo · Voice AI for HVAC Dispatch</div>
+  <h1>Riley answers every call. <span>Every time.</span></h1>
+  <p>A voice AI agent that handles inbound HVAC service calls 24/7 — books the appointment, creates the work order in your dispatch system, triages emergencies, and never puts a caller on hold.</p>
+  <div class="cta-row">
+    <a href="dashboard.html" class="btn btn-pri">📊 View Live Dashboard</a>
+    <a href="#how" class="btn btn-ghost">How it works</a>
+  </div>
+</section>
+
+<section class="feature" id="how">
+  <div class="section-title">How a call flows through Riley</div>
+  <div class="section-sub">Same pattern used across our live voice-agent deployments (matchmaking, pharmacy, automotive) — repurposed here for HVAC dispatch.</div>
+  <div class="flow">
+    <div class="flow-step"><div class="n">1</div><h4>Inbound Call</h4><p>Customer calls your existing business number — Riley answers in your company's name.</p></div>
+    <div class="flow-step"><div class="n">2</div><h4>Triage</h4><p>Riley asks what's wrong, flags true emergencies (no heat, gas smell, CO) for immediate escalation.</p></div>
+    <div class="flow-step"><div class="n">3</div><h4>Book &amp; Dispatch</h4><p>Collects name, address, issue, and preferred window — creates a work order directly in your CRM.</p></div>
+    <div class="flow-step"><div class="n">4</div><h4>Confirm &amp; Log</h4><p>Customer gets a confirmation; your team sees the call, transcript, and work order on the dashboard instantly.</p></div>
+  </div>
+</section>
+
+<section class="feature">
+  <div class="section-title">What Riley handles</div>
+  <div class="grid3">
+    <div class="card"><div class="ic">🛠️</div><h3>New Service Requests</h3><p>Collects customer info, address, issue description, urgency, and preferred appointment window — creates the work order automatically.</p></div>
+    <div class="card"><div class="ic">📋</div><h3>Status Checks</h3><p>"Where's my technician?" — Riley looks up the work order by ID or phone number and gives a status update.</p></div>
+    <div class="card"><div class="ic">🚨</div><h3>Emergency Triage</h3><p>No heat, no AC, gas smell, carbon monoxide, flooding — Riley recognizes true emergencies and escalates immediately to an on-call line.</p></div>
+    <div class="card"><div class="ic">📅</div><h3>Scheduling</h3><p>Checks real-time availability and offers the next open service windows, pulling live from your dispatch calendar.</p></div>
+    <div class="card"><div class="ic">💬</div><h3>General Questions</h3><p>Service area, hours, pricing ranges, maintenance plans — answered straight from your company's knowledge base.</p></div>
+    <div class="card"><div class="ic">🔁</div><h3>Multi-Location Ready</h3><p>One platform, multiple phone numbers — each location or franchise gets its own knowledge base and dispatch backend automatically.</p></div>
+  </div>
+</section>
+
+<section class="feature">
+  <div class="section-title">Connects to the dispatch/CRM tools you already use</div>
+  <div class="section-sub">Riley's backend is built on an adapter pattern — swap in your real system without changing the voice experience.</div>
+  <div class="crm-row">
+    <div class="crm-pill">ServiceTitan</div>
+    <div class="crm-pill">Housecall Pro</div>
+    <div class="crm-pill">Jobber</div>
+    <div class="crm-pill">FieldEdge</div>
+    <div class="crm-pill">Your Internal System</div>
+  </div>
+</section>
+
+<footer>
+  Riley is a demo voice AI agent built by ThinkCreate.AI. Not affiliated with ServiceTitan, Housecall Pro, Jobber, or FieldEdge — names shown to illustrate integration compatibility.
+</footer>
+</body>
+</html>

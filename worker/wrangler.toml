@@ -1,0 +1,7 @@
+name = "hvac-dispatch-voice-agent"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "CALLS"
+id = "REPLACE_WITH_NEW_KV_NAMESPACE_ID"

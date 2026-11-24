@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riley Dashboard — HVAC Dispatch Voice Agent</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+    :root{--pri:#ff7a1a;--pri2:#e05e00;--navy:#0d1b2a;--navy2:#13273d;--tx:#fff;--tx2:rgba(255,255,255,0.6);--bd:rgba(255,122,26,0.25);--card:rgba(255,255,255,0.06);--ok:#48bb78;--warn:#ed8936;--err:#fc8181}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;background:linear-gradient(135deg,var(--navy),var(--navy2));color:var(--tx);min-height:100vh}
+    nav{background:rgba(0,0,0,.3);border-bottom:1px solid var(--bd);padding:12px 24px;display:flex;align-items:center;gap:16px}
+    nav a{color:var(--tx2);text-decoration:none;font-size:.85em}
+    nav a:hover{color:var(--pri)}
+    nav .logo{color:var(--pri);font-weight:700;font-size:1.1em;margin-right:auto}
+    .container{max-width:1200px;margin:0 auto;padding:24px}
+    h1{font-size:1.6em;margin-bottom:8px}
+    .subtitle{color:var(--tx2);font-size:.9em;margin-bottom:24px}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px}
+    .stat{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:20px}
+    .stat .num{font-size:2em;font-weight:800;color:var(--pri)}
+    .stat .label{font-size:.78em;color:var(--tx2);margin-top:4px}
+    .tabs{display:flex;gap:8px;margin-bottom:20px}
+    .tab{background:var(--card);border:1px solid var(--bd);color:var(--tx2);padding:8px 18px;border-radius:999px;font-size:.85em;cursor:pointer;font-weight:600}
+    .tab.active{background:var(--pri);color:#1a1005;border-color:var(--pri)}
+    table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--bd);border-radius:10px;overflow:hidden}
+    thead{background:rgba(0,0,0,.2)}
+    th{text-align:left;padding:10px 14px;font-size:.78em;color:var(--tx2);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+    td{padding:10px 14px;font-size:.85em;border-top:1px solid var(--bd)}
+    tr:hover td{background:rgba(255,122,26,.06)}
+    .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.72em;font-weight:600}
+    .badge-green{background:rgba(72,187,120,.15);color:var(--ok)}
+    .badge-red{background:rgba(252,129,129,.15);color:var(--err)}
+    .badge-orange{background:rgba(255,122,26,.15);color:var(--pri)}
+    .badge-gray{background:rgba(255,255,255,.08);color:var(--tx2)}
+    .status-bar{display:flex;align-items:center;gap:8px;margin-bottom:24px;padding:10px 16px;background:var(--card);border:1px solid var(--bd);border-radius:8px;font-size:.82em}
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
+    .dot-green{background:var(--ok)}
+    .dot-red{background:var(--err)}
+    .empty{text-align:center;padding:60px;color:var(--tx2);font-size:.9em}
+    .panel{display:none}
+    .panel.active{display:block}
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;padding:20px}
+    .modal-overlay.open{display:flex;align-items:center;justify-content:center}
+    .modal{background:#142a42;border:1px solid var(--bd);border-radius:12px;width:100%;max-width:700px;max-height:80vh;overflow-y:auto;padding:28px}
+    .modal h3{margin-bottom:16px;color:var(--pri)}
+    .modal .close-btn{float:right;background:none;border:none;color:var(--tx2);font-size:1.4em;cursor:pointer}
+    .transcript-box{background:rgba(0,0,0,.3);border-radius:8px;padding:16px;font-size:.82em;line-height:1.8;color:var(--tx2);white-space:pre-wrap;max-height:300px;overflow-y:auto;margin-top:12px}
+    .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+    .detail-item .dl{font-size:.7em;color:var(--tx2);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+    .detail-item .dv{font-size:.88em}
+    .config-note{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px 20px;font-size:.85em;color:var(--tx2);margin-bottom:20px}
+    .config-note code{color:var(--pri);background:rgba(0,0,0,.25);padding:1px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+<nav>
+    <span class="logo">🔥 Riley · HVAC Dispatch Agent</span>
+    <a href="index.html">Home</a>
+    <a href="dashboard.html" style="color:var(--pri)">Dashboard</a>
+</nav>
+
+<div class="container">
+    <h1>📊 Riley Dashboard</h1>
+    <p class="subtitle">Calls, work orders, and dispatch activity — demo tenant</p>
+
+    <div class="config-note">
+        ⚙️ Demo mode: set <code>VAPI_KEY</code> and <code>ASSISTANT_ID</code> below once the HVAC company's VAPI assistant + number are provisioned. Work-order data pulls live from the backend Worker at <code>WORKER_URL</code>.
+    </div>
+
+    <div class="status-bar">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">Connecting...</span>
+        <span id="statusDetail" style="margin-left:auto;color:var(--tx2)"></span>
+        <button onclick="loadAll()" style="background:none;border:1px solid var(--bd);color:var(--tx2);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.78em;margin-left:12px">↻ Refresh</button>
+    </div>
+
+    <div class="stats">
+        <div class="stat"><div class="num" id="totalCalls">—</div><div class="label">Total Calls</div></div>
+        <div class="stat"><div class="num" id="avgDuration">—</div><div class="label">Avg Duration</div></div>
+        <div class="stat"><div class="num" id="workOrderCount">—</div><div class="label">Work Orders Created</div></div>
+        <div class="stat"><div class="num" id="emergencyCount">—</div><div class="label">Emergencies Escalated</div></div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" data-panel="calls">📞 Calls</div>
+        <div class="tab" data-panel="workorders">🛠️ Work Orders</div>
+    </div>
+
+    <div class="panel active" id="panel-calls">
+        <table>
+            <thead>
+                <tr><th>Time</th><th>Caller</th><th>Duration</th><th>Type</th><th>Summary</th></tr>
+            </thead>
+            <tbody id="callsBody"><tr><td colspan="5" class="empty">Loading calls…</td></tr></tbody>
+        </table>
+    </div>
+
+    <div class="panel" id="panel-workorders">
+        <table>
+            <thead>
+                <tr><th>Work Order ID</th><th>Customer</th><th>Issue</th><th>Urgency</th><th>Status</th><th>Created</th></tr>
+            </thead>
+            <tbody id="workOrdersBody"><tr><td colspan="6" class="empty">Loading work orders…</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal-overlay" id="detailModal">
+    <div class="modal">
+        <button class="close-btn" onclick="closeDetail()">✕</button>
+        <h3 id="modalTitle">Call Detail</h3>
+        <div class="detail-grid" id="modalGrid"></div>
+        <div><strong style="font-size:.78em;text-transform:uppercase;letter-spacing:1px;color:var(--tx2)">Summary</strong><p id="modalSummary" style="margin-top:6px;font-size:.88em;line-height:1.7"></p></div>
+        <div style="margin-top:16px"><strong style="font-size:.78em;text-transform:uppercase;letter-spacing:1px;color:var(--tx2)">Transcript</strong><div class="transcript-box" id="modalTranscript"></div></div>
+    </div>
+</div>
+
+<script>
+// --- CONFIG: fill these in once the demo tenant is provisioned in VAPI ---
+const WORKER_URL = 'https://hvac-dispatch-voice-agent.prahlad-menon.workers.dev';
+const VAPI_KEY = '';        // set once assistant exists (leave blank to skip VAPI call-list fetch)
+const ASSISTANT_ID = '';    // VAPI assistant id for Riley
+
+let allCalls = [];
+let allWorkOrders = [];
+
+async function loadHealth() {
+    try {
+        const r = await fetch(`${WORKER_URL}/health`);
+        const d = await r.json();
+        if (d.status === 'ok') {
+            document.getElementById('statusDot').className = 'dot dot-green';
+            document.getElementById('statusText').textContent = 'Riley Backend Online';
+            document.getElementById('statusDetail').textContent = `${d.tenants} tenant(s) configured`;
+        } else {
+            document.getElementById('statusDot').className = 'dot dot-red';
+            document.getElementById('statusText').textContent = 'Backend Error';
+        }
+    } catch (e) {
+        document.getElementById('statusDot').className = 'dot dot-red';
+        document.getElementById('statusText').textContent = 'Cannot reach backend';
+    }
+}
+
+async function loadCalls() {
+    try {
+        if (VAPI_KEY && ASSISTANT_ID) {
+            const r = await fetch(`https://api.vapi.ai/call?assistantId=${ASSISTANT_ID}&limit=100`, {
+                headers: { Authorization: `Bearer ${VAPI_KEY}` },
+            });
+            const data = await r.json();
+            allCalls = (Array.isArray(data) ? data : data.results || []);
+        } else {
+            // Fallback: pull from our own Worker's /pending + stored calls
+            const r = await fetch(`${WORKER_URL}/pending`);
+            const data = await r.json();
+            allCalls = data.calls || [];
+        }
+        allCalls.sort((a, b) => (b.startedAt || b.timestamp || '').localeCompare(a.startedAt || a.timestamp || ''));
+        updateStats();
+        renderCalls();
+    } catch (e) {
+        document.getElementById('callsBody').innerHTML = `<tr><td colspan="5" class="empty">Error loading calls: ${e.message}</td></tr>`;
+    }
+}
+
+async function loadWorkOrders() {
+    try {
+        const r = await fetch(`${WORKER_URL}/work-orders`);
+        const data = await r.json();
+        allWorkOrders = data.workOrders || [];
+        renderWorkOrders();
+    } catch (e) {
+        document.getElementById('workOrdersBody').innerHTML = `<tr><td colspan="6" class="empty">Error loading work orders: ${e.message}</td></tr>`;
+    }
+}
+
+function updateStats() {
+    document.getElementById('totalCalls').textContent = allCalls.length;
+    const durations = allCalls.map(c => {
+        if (c.endedAt && c.startedAt) return (new Date(c.endedAt) - new Date(c.startedAt)) / 1000;
+        return c.duration || 0;
+    }).filter(d => d > 0);
+    const avg = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
+    document.getElementById('avgDuration').textContent = avg > 60 ? `${Math.floor(avg / 60)}m ${avg % 60}s` : `${avg}s`;
+    document.getElementById('workOrderCount').textContent = allWorkOrders.length;
+    const emergencies = allCalls.filter(c => (c.urgency || '').toLowerCase() === 'emergency').length;
+    document.getElementById('emergencyCount').textContent = emergencies;
+}
+
+function renderCalls() {
+    if (!allCalls.length) {
+        document.getElementById('callsBody').innerHTML = '<tr><td colspan="5" class="empty">No calls yet — this fills in as soon as the demo number starts receiving calls.</td></tr>';
+        return;
+    }
+    document.getElementById('callsBody').innerHTML = allCalls.map((c, i) => {
+        const rawDur = c.endedAt && c.startedAt ? Math.round((new Date(c.endedAt) - new Date(c.startedAt)) / 1000) : (c.duration || 0);
+        const dur = rawDur ? `${Math.floor(rawDur / 60)}m ${rawDur % 60}s` : '—';
+        const dt = c.startedAt ? new Date(c.startedAt).toLocaleString() : (c.timestamp ? new Date(c.timestamp).toLocaleString() : '—');
+        const summary = (c.analysis?.summary || c.summary || '—').toString().substring(0, 140);
+        const caller = c.customer?.number || c.customerNumber || '—';
+        const type = c.requestType || c.type || 'inbound';
+        return `<tr onclick="showDetail(${i})" style="cursor:pointer">
+            <td>${dt}</td><td>${caller}</td><td>${dur}</td>
+            <td><span class="badge badge-orange">${type}</span></td>
+            <td style="max-width:360px;white-space:normal;font-size:.8em;color:var(--tx2)">${summary}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderWorkOrders() {
+    if (!allWorkOrders.length) {
+        document.getElementById('workOrdersBody').innerHTML = '<tr><td colspan="6" class="empty">No work orders created yet.</td></tr>';
+        return;
+    }
+    document.getElementById('workOrdersBody').innerHTML = allWorkOrders.map(w => {
+        const urgencyBadge = w.urgency === 'emergency'
+            ? '<span class="badge badge-red">Emergency</span>'
+            : '<span class="badge badge-gray">Routine</span>';
+        const statusBadge = w.status === 'completed'
+            ? '<span class="badge badge-green">Completed</span>'
+            : '<span class="badge badge-orange">Scheduled</span>';
+        return `<tr>
+            <td>${w.id}</td><td>${w.customerName || '—'}</td><td>${w.issue || '—'}</td>
+            <td>${urgencyBadge}</td><td>${statusBadge}</td>
+            <td>${w.createdAt ? new Date(w.createdAt).toLocaleString() : '—'}</td>
+        </tr>`;
+    }).join('');
+}
+
+function showDetail(i) {
+    const c = allCalls[i];
+    if (!c) return;
+    const rawDur = c.endedAt && c.startedAt ? Math.round((new Date(c.endedAt) - new Date(c.startedAt)) / 1000) : (c.duration || 0);
+    document.getElementById('modalTitle').textContent = `Call · ${(c.id || '').toString().substring(0, 18)}…`;
+    document.getElementById('modalGrid').innerHTML = [
+        ['Date', c.startedAt ? new Date(c.startedAt).toLocaleString() : (c.timestamp ? new Date(c.timestamp).toLocaleString() : '—')],
+        ['Duration', rawDur ? `${Math.floor(rawDur / 60)}m ${rawDur % 60}s` : '—'],
+        ['Caller', c.customer?.number || c.customerNumber || '—'],
+        ['Urgency', c.urgency || '—'],
+    ].map(([l, v]) => `<div class="detail-item"><div class="dl">${l}</div><div class="dv">${v}</div></div>`).join('');
+    document.getElementById('modalSummary').textContent = c.analysis?.summary || c.summary || 'No summary available.';
+    document.getElementById('modalTranscript').textContent = c.transcript || 'No transcript available.';
+    document.getElementById('detailModal').classList.add('open');
+}
+
+function closeDetail() {
+    document.getElementById('detailModal').classList.remove('open');
+}
+
+document.getElementById('detailModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('detailModal')) closeDetail();
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+    });
+});
+
+function loadAll() { loadHealth(); loadCalls(); loadWorkOrders(); }
+loadAll();
+setInterval(loadHealth, 30000);
+setInterval(loadAll, 60000);
+</script>
+</body>
+</html>
