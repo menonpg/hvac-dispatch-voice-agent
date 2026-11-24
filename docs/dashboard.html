@@ -283,8 +283,9 @@ document.querySelectorAll('.tab').forEach(tab => {
 
 function loadAll() { loadHealth(); loadCalls(); loadWorkOrders(); }
 loadAll();
-setInterval(loadHealth, 30000);
-setInterval(loadAll, 60000);
+// On-demand only — no auto-polling. Previously setInterval(30s/60s) ran in
+// every open dashboard tab and burned through the Workers KV free-tier daily
+// read/list limit. Use the ↻ Refresh button above to pull fresh data.
 </script>
 </body>
 </html>
