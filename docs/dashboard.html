@@ -214,7 +214,9 @@ function renderCalls() {
         const rawDur = c.endedAt && c.startedAt ? Math.round((new Date(c.endedAt) - new Date(c.startedAt)) / 1000) : (c.duration || 0);
         const dur = rawDur ? `${Math.floor(rawDur / 60)}m ${rawDur % 60}s` : '—';
         const dt = c.startedAt ? new Date(c.startedAt).toLocaleString() : (c.timestamp ? new Date(c.timestamp).toLocaleString() : '—');
-        const summary = (c.analysis?.summary || c.summary || '—').toString().substring(0, 140);
+        const summary = (c.analysis?.summary || c.summary
+            || (c.analysis?.structuredData?.issue ? `${c.analysis.structuredData.issue}${c.analysis.structuredData.requestType ? ' — ' + c.analysis.structuredData.requestType : ''}` : '—')
+          ).toString().substring(0, 140);
         const caller = c.customer?.number || c.customerNumber || '—';
         const type = c.requestType || c.type || 'inbound';
         return `<tr onclick="showDetail(${i})" style="cursor:pointer">
