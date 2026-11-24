@@ -23,7 +23,19 @@
     .tabs{display:flex;gap:8px;margin-bottom:20px}
     .tab{background:var(--card);border:1px solid var(--bd);color:var(--tx2);padding:8px 18px;border-radius:999px;font-size:.85em;cursor:pointer;font-weight:600}
     .tab.active{background:var(--pri);color:#1a1005;border-color:var(--pri)}
-    table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--bd);border-radius:10px;overflow:hidden}
+    .table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px;border:1px solid var(--bd)}
+    table{width:100%;min-width:640px;border-collapse:collapse;background:var(--card)}
+    @media (max-width:640px){
+      .container{padding:14px}
+      .stats{grid-template-columns:repeat(2,1fr);gap:10px}
+      .stat{padding:14px}
+      .stat .num{font-size:1.5em}
+      nav{flex-wrap:wrap;padding:10px 14px}
+      h1{font-size:1.3em}
+      .tabs{flex-wrap:wrap}
+      .modal{padding:18px;max-width:94vw}
+      .detail-grid{grid-template-columns:1fr}
+    }
     thead{background:rgba(0,0,0,.2)}
     th{text-align:left;padding:10px 14px;font-size:.78em;color:var(--tx2);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
     td{padding:10px 14px;font-size:.85em;border-top:1px solid var(--bd)}
@@ -88,21 +100,25 @@
     </div>
 
     <div class="panel active" id="panel-calls">
+        <div class="table-wrap">
         <table>
             <thead>
                 <tr><th>Time</th><th>Caller</th><th>Duration</th><th>Type</th><th>Summary</th></tr>
             </thead>
             <tbody id="callsBody"><tr><td colspan="5" class="empty">Loading calls…</td></tr></tbody>
         </table>
+        </div>
     </div>
 
     <div class="panel" id="panel-workorders">
+        <div class="table-wrap">
         <table>
             <thead>
                 <tr><th>Work Order ID</th><th>Customer</th><th>Issue</th><th>Urgency</th><th>Status</th><th>Created</th></tr>
             </thead>
             <tbody id="workOrdersBody"><tr><td colspan="6" class="empty">Loading work orders…</td></tr></tbody>
         </table>
+        </div>
     </div>
 </div>
 
