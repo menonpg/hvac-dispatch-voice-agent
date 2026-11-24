@@ -258,7 +258,8 @@ function showDetail(i) {
         ['Caller', c.customer?.number || c.customerNumber || '—'],
         ['Urgency', c.urgency || '—'],
     ].map(([l, v]) => `<div class="detail-item"><div class="dl">${l}</div><div class="dv">${v}</div></div>`).join('');
-    document.getElementById('modalSummary').textContent = c.analysis?.summary || c.summary || 'No summary available.';
+    document.getElementById('modalSummary').textContent = c.analysis?.summary || c.summary
+        || (c.analysis?.structuredData?.issue ? `${c.analysis.structuredData.issue}${c.analysis.structuredData.requestType ? ' — ' + c.analysis.structuredData.requestType : ''}` : 'No summary available.');
     document.getElementById('modalTranscript').textContent = c.transcript || 'No transcript available.';
     document.getElementById('detailModal').classList.add('open');
 }
