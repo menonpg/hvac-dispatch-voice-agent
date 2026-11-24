@@ -246,9 +246,13 @@ export default {
       if (path.startsWith('/vapi/tools/') && request.method === 'POST') {
         const toolName = path.replace('/vapi/tools/', '');
         const body = await request.json();
-        // VAPI tool-call payload shape: { message: { toolCalls: [{ id, function: { name, arguments } }] , call: { ... } } }
-        const toolCall = body.message?.toolCalls?.[0];
-        const args = toolCall?.function?.arguments ? JSON.parse(toolCall.function.arguments) : body.arguments || {};
+        // VAPI actual tool-call payload shape (per docs.vapi.ai/tools/custom-tools):
+        // { message: { type: "tool-calls", toolCallList: [{ id, type, function: { name, arguments: {...already an object...} } }], call: {...} } }
+        const toolCall = body.message?.toolCallList?.[0] || body.message?.toolCalls?.[0];
+        let args = toolCall?.function?.arguments || body.arguments || {};
+        if (typeof args === 'string') {
+          try { args = JSON.parse(args); } catch (e) { args = {}; }
+        }
         const toNumber = body.message?.call?.phoneNumber?.number || body.message?.call?.to || args.toNumber || 'DEMO_PHONE_NUMBER';
         const tenant = resolveTenant(toNumber);
         const crm = getCrmAdapter(tenant, env);
