@@ -29,12 +29,80 @@
  *   POST /vapi/tools/:toolName   - VAPI function/tool calls during the call
  *                                  (create_work_order, check_status,
  *                                   find_next_slot, escalate_emergency)
- *   GET  /pending                - Unnotified calls (for heartbeat/dashboard polling)
- *   POST /ack/:id                - Mark call as notified
- *   GET  /work-orders            - List work orders (dashboard)
+ *   GET  /calls                  - Recent calls from VAPI (dashboard)        [auth]
+ *   GET  /pending                - Unnotified calls (heartbeat polling)      [auth]
+ *   POST /ack/:id                - Mark call as notified                     [auth]
+ *   GET  /work-orders            - List work orders (dashboard)              [auth]
  *   GET  /health                 - Health check
- *   GET  /debug                  - Debug last webhook received
+ *   GET  /debug                  - Last webhook (only if DEBUG_WEBHOOKS=1)   [auth]
+ *
+ * [auth] = requires `Authorization: Bearer <DASHBOARD_KEY>` (worker secret).
+ *
+ * KV BUDGET (free tier: 100k reads, 1k writes, 1k deletes, 1k lists per day):
+ * no request path calls KV list(). Work orders and pending calls each keep a
+ * single index document (`index:workorders`, `index:pending`) that is updated
+ * on write, so dashboard reads cost 1 KV read (+1 per pending call) and
+ * unauthenticated requests are rejected before touching KV at all.
+ *
+ * Secrets: DASHBOARD_KEY (required for dashboard routes), VAPI_API_KEY (for
+ * /calls), VAPI_WEBHOOK_SECRET (optional; if set, /vapi/* must send a matching
+ * x-vapi-secret header). Var: DEBUG_WEBHOOKS="1" to store the last webhook.
  */
+
+const DAY = 24 * 60 * 60;
+const WORK_ORDER_TTL = 90 * DAY;
+const CALL_TTL = 30 * DAY;
+const PENDING_TTL = DAY;
+const INDEX_MAX = 200;
+const ALLOWED_ORIGINS = ['https://hvac.themenonlab.com', 'https://menonpg.github.io'];
+
+// --- Index documents: one KV key holding a small JSON array, replacing list() ---
+async function readIndex(env, key) {
+  const raw = await env.CALLS.get(key);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+}
+
+// Read-modify-write. KV has no transactions; fine at demo call volumes, but two
+// writes landing in the same instant can drop one entry from the index (the
+// underlying workorder:/call: record is still stored).
+async function updateIndex(env, key, fn, maxAgeSeconds) {
+  const cutoff = Date.now() - maxAgeSeconds * 1000;
+  const next = fn(await readIndex(env, key))
+    .filter(e => new Date(e.ts || e.createdAt).getTime() > cutoff)
+    .slice(0, INDEX_MAX);
+  await env.CALLS.put(key, JSON.stringify(next));
+  return next;
+}
+
+// --- Tiny per-isolate cache so repeated dashboard refreshes don't re-hit KV/VAPI ---
+const memo = new Map();
+async function cached(key, ttlMs, loader) {
+  const hit = memo.get(key);
+  if (hit && hit.expires > Date.now()) return hit.value;
+  const value = await loader();
+  memo.set(key, { value, expires: Date.now() + ttlMs });
+  return value;
+}
+function invalidate(key) { memo.delete(key); }
+
+function timingSafeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+function isDashboardAuthorized(request, env) {
+  if (!env.DASHBOARD_KEY) return false; // fail closed if the secret isn't configured
+  const header = request.headers.get('Authorization') || '';
+  return timingSafeEqual(header.replace(/^Bearer\s+/i, ''), env.DASHBOARD_KEY);
+}
+
+function isVapiAuthorized(request, env) {
+  if (!env.VAPI_WEBHOOK_SECRET) return true; // optional until configured in VAPI
+  return timingSafeEqual(request.headers.get('x-vapi-secret') || '', env.VAPI_WEBHOOK_SECRET);
+}
 
 // ---------------------------------------------------------------------------
 // TENANT CONFIG — one entry per inbound phone number. This is what makes the
@@ -107,8 +175,9 @@ function internalAdapter(tenant, env) {
         status: 'scheduled',
         createdAt: new Date().toISOString(),
       };
-      await env.CALLS.put(`workorder:${id}`, JSON.stringify(workOrder), { expirationTtl: 90 * 24 * 60 * 60 });
-      await env.CALLS.put(`workorder-index:${id}`, tenant.id, { expirationTtl: 90 * 24 * 60 * 60 });
+      await env.CALLS.put(`workorder:${id}`, JSON.stringify(workOrder), { expirationTtl: WORK_ORDER_TTL });
+      await updateIndex(env, 'index:workorders', list => [workOrder, ...list.filter(w => w.id !== id)], WORK_ORDER_TTL);
+      invalidate('work-orders');
       return { id, status: 'scheduled', message: `Work order ${id} created for ${customerName}.` };
     },
     async getWorkOrderStatus({ workOrderId, customerPhone }) {
@@ -225,12 +294,23 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // VAPI calls us server-to-server (no CORS); only the dashboard origins need it.
+    const origin = request.headers.get('Origin') || '';
     const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Vary': 'Origin',
     };
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+
+    const DASHBOARD_ROUTES = ['/calls', '/pending', '/work-orders', '/debug'];
+    if ((DASHBOARD_ROUTES.includes(path) || path.startsWith('/ack/')) && !isDashboardAuthorized(request, env)) {
+      return json({ error: 'Unauthorized' }, corsHeaders, 401);
+    }
+    if (path.startsWith('/vapi/') && !isVapiAuthorized(request, env)) {
+      return json({ error: 'Unauthorized' }, corsHeaders, 401);
+    }
 
     try {
       if (path === '/health') {
@@ -238,6 +318,7 @@ export default {
       }
 
       if (path === '/debug') {
+        if (env.DEBUG_WEBHOOKS !== '1') return json({ lastWebhook: null, note: 'Set DEBUG_WEBHOOKS=1 to record webhooks.' }, corsHeaders);
         const lastWebhook = await env.CALLS.get('debug:last-webhook');
         return json({ lastWebhook: lastWebhook ? JSON.parse(lastWebhook) : null }, corsHeaders);
       }
@@ -284,9 +365,14 @@ export default {
       // --- VAPI end-of-call-report + events ------------------------------
       if (path === '/vapi/webhook' && request.method === 'POST') {
         const body = await request.json();
-        await env.CALLS.put('debug:last-webhook', JSON.stringify({ receivedAt: new Date().toISOString(), body }), { expirationTtl: 24 * 60 * 60 });
-
         const messageType = body.message?.type || body.type;
+
+        // VAPI sends many events per call (status-update, transcript, ...). Storing
+        // each one cost a KV write against the 1k/day free limit, so it's opt-in.
+        if (env.DEBUG_WEBHOOKS === '1') {
+          await env.CALLS.put('debug:last-webhook', JSON.stringify({ receivedAt: new Date().toISOString(), body }), { expirationTtl: DAY });
+        }
+
         if (messageType !== 'end-of-call-report') {
           return json({ status: 'ignored', type: messageType }, corsHeaders);
         }
@@ -321,48 +407,49 @@ export default {
           notified: false,
         };
 
-        await env.CALLS.put(`call:${callId}`, JSON.stringify(callData), { expirationTtl: 30 * 24 * 60 * 60 });
-        await env.CALLS.put(`pending:${callId}`, callId, { expirationTtl: 24 * 60 * 60 });
+        await env.CALLS.put(`call:${callId}`, JSON.stringify(callData), { expirationTtl: CALL_TTL });
+        await updateIndex(env, 'index:pending', list => [{ id: callId, ts: callData.timestamp }, ...list.filter(p => p.id !== callId)], PENDING_TTL);
+        invalidate('calls');
 
         return json({ status: 'stored', callId, tenant: tenant.id }, corsHeaders);
       }
 
-      // --- Dashboard / heartbeat polling endpoints -----------------------
+      // --- Dashboard / heartbeat endpoints (auth checked above) ------------
+      if (path === '/calls' && request.method === 'GET') {
+        if (!env.VAPI_API_KEY) return json({ error: 'VAPI_API_KEY not configured' }, corsHeaders, 503);
+        const assistantId = env.VAPI_ASSISTANT_ID;
+        const calls = await cached('calls', 30_000, async () => {
+          const qs = new URLSearchParams({ limit: '100', ...(assistantId ? { assistantId } : {}) });
+          const res = await fetch(`https://api.vapi.ai/call?${qs}`, { headers: { Authorization: `Bearer ${env.VAPI_API_KEY}` } });
+          if (!res.ok) throw new Error(`VAPI ${res.status}`);
+          const data = await res.json();
+          return Array.isArray(data) ? data : (data.results || []);
+        });
+        return json({ calls, count: calls.length }, corsHeaders);
+      }
+
       if (path === '/pending' && request.method === 'GET') {
-        const pendingList = await env.CALLS.list({ prefix: 'pending:' });
-        const pendingCalls = [];
-        for (const key of pendingList.keys) {
-          const callId = await env.CALLS.get(key.name);
-          if (callId) {
-            const callData = await env.CALLS.get(`call:${callId}`);
-            if (callData) pendingCalls.push(JSON.parse(callData));
-          }
-        }
-        return json({ calls: pendingCalls, count: pendingCalls.length }, corsHeaders);
+        const pending = await readIndex(env, 'index:pending');
+        const calls = (await Promise.all(pending.map(p => env.CALLS.get(`call:${p.id}`))))
+          .filter(Boolean).map(raw => JSON.parse(raw));
+        return json({ calls, count: calls.length }, corsHeaders);
       }
 
       if (path.startsWith('/ack/') && request.method === 'POST') {
-        const callId = path.replace('/ack/', '');
-        await env.CALLS.delete(`pending:${callId}`);
+        const callId = decodeURIComponent(path.replace('/ack/', ''));
+        await updateIndex(env, 'index:pending', list => list.filter(p => p.id !== callId), PENDING_TTL);
         const callData = await env.CALLS.get(`call:${callId}`);
         if (callData) {
           const call = JSON.parse(callData);
           call.notified = true;
           call.notifiedAt = new Date().toISOString();
-          await env.CALLS.put(`call:${callId}`, JSON.stringify(call), { expirationTtl: 30 * 24 * 60 * 60 });
+          await env.CALLS.put(`call:${callId}`, JSON.stringify(call), { expirationTtl: CALL_TTL });
         }
         return json({ status: 'acknowledged', callId }, corsHeaders);
       }
 
       if (path === '/work-orders' && request.method === 'GET') {
-        const indexList = await env.CALLS.list({ prefix: 'workorder-index:' });
-        const orders = [];
-        for (const key of indexList.keys) {
-          const woId = key.name.replace('workorder-index:', '');
-          const raw = await env.CALLS.get(`workorder:${woId}`);
-          if (raw) orders.push(JSON.parse(raw));
-        }
-        orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const orders = await cached('work-orders', 15_000, () => readIndex(env, 'index:workorders'));
         return json({ workOrders: orders, count: orders.length }, corsHeaders);
       }
 

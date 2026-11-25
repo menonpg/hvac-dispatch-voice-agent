@@ -63,6 +63,10 @@
     .detail-item .dv{font-size:.88em}
     .config-note{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px 20px;font-size:.85em;color:var(--tx2);margin-bottom:20px}
     .config-note code{color:var(--pri);background:rgba(0,0,0,.25);padding:1px 6px;border-radius:4px}
+    .unlock{display:none;gap:8px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:.85em}
+    .unlock.open{display:flex}
+    .unlock input{flex:1;min-width:200px;background:rgba(0,0,0,.3);border:1px solid var(--bd);color:inherit;padding:6px 10px;border-radius:4px}
+    .unlock button{background:var(--pri);border:none;color:#000;padding:6px 14px;border-radius:4px;cursor:pointer;font-weight:600}
 </style>
 </head>
 <body>
@@ -86,6 +90,12 @@
         <span id="statusDetail" style="margin-left:auto;color:var(--tx2)"></span>
         <button onclick="loadAll()" style="background:none;border:1px solid var(--bd);color:var(--tx2);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.78em;margin-left:12px">↻ Refresh</button>
     </div>
+
+    <form class="unlock" id="unlockForm" onsubmit="saveKey(event)">
+        <span>🔒 Enter the dashboard key to load calls and work orders:</span>
+        <input type="password" id="keyInput" autocomplete="current-password" placeholder="Dashboard key" aria-label="Dashboard key">
+        <button type="submit">Unlock</button>
+    </form>
 
     <div class="stats">
         <div class="stat"><div class="num" id="totalCalls">—</div><div class="label">Total Calls</div></div>
@@ -133,13 +143,37 @@
 </div>
 
 <script>
-// --- CONFIG: fill these in once the demo tenant is provisioned in VAPI ---
+// The Worker holds the VAPI key; this page only needs the dashboard key, which
+// the viewer types in once and is kept in this browser's localStorage.
 const WORKER_URL = 'https://hvac-dispatch-voice-agent.prahlad-menon.workers.dev';
-const VAPI_KEY = 'bacd5a8c-8974-47d8-af28-cec2746cffda';
-const ASSISTANT_ID = 'e979de0b-6552-4ccd-bcf4-6dfe9543ee1e';
+const KEY_STORAGE = 'riley-dashboard-key';
 
 let allCalls = [];
 let allWorkOrders = [];
+
+function getKey() { try { return localStorage.getItem(KEY_STORAGE) || ''; } catch { return ''; } }
+function setKey(k) { try { k ? localStorage.setItem(KEY_STORAGE, k) : localStorage.removeItem(KEY_STORAGE); } catch {} }
+let dashboardKey = getKey();
+
+function showUnlock(show) { document.getElementById('unlockForm').classList.toggle('open', show); }
+
+function saveKey(e) {
+    e.preventDefault();
+    dashboardKey = document.getElementById('keyInput').value.trim();
+    setKey(dashboardKey);
+    document.getElementById('keyInput').value = '';
+    loadAll();
+}
+
+// Authenticated GET against the Worker. A 401 clears the stored key and asks again.
+async function api(path) {
+    if (!dashboardKey) { showUnlock(true); throw new Error('Dashboard key required'); }
+    const r = await fetch(`${WORKER_URL}${path}`, { headers: { Authorization: `Bearer ${dashboardKey}` } });
+    if (r.status === 401) { dashboardKey = ''; setKey(''); showUnlock(true); throw new Error('Dashboard key rejected'); }
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    showUnlock(false);
+    return r.json();
+}
 
 async function loadHealth() {
     try {
@@ -161,18 +195,8 @@ async function loadHealth() {
 
 async function loadCalls() {
     try {
-        if (VAPI_KEY && ASSISTANT_ID) {
-            const r = await fetch(`https://api.vapi.ai/call?assistantId=${ASSISTANT_ID}&limit=100`, {
-                headers: { Authorization: `Bearer ${VAPI_KEY}` },
-            });
-            const data = await r.json();
-            allCalls = (Array.isArray(data) ? data : data.results || []);
-        } else {
-            // Fallback: pull from our own Worker's /pending + stored calls
-            const r = await fetch(`${WORKER_URL}/pending`);
-            const data = await r.json();
-            allCalls = data.calls || [];
-        }
+        const data = await api('/calls');
+        allCalls = data.calls || [];
         allCalls.sort((a, b) => (b.startedAt || b.timestamp || '').localeCompare(a.startedAt || a.timestamp || ''));
         updateStats();
         renderCalls();
@@ -183,10 +207,10 @@ async function loadCalls() {
 
 async function loadWorkOrders() {
     try {
-        const r = await fetch(`${WORKER_URL}/work-orders`);
-        const data = await r.json();
+        const data = await api('/work-orders');
         allWorkOrders = data.workOrders || [];
         renderWorkOrders();
+        updateStats();
     } catch (e) {
         document.getElementById('workOrdersBody').innerHTML = `<tr><td colspan="6" class="empty">Error loading work orders: ${e.message}</td></tr>`;
     }

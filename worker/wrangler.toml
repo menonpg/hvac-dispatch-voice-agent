@@ -1,7 +1,18 @@
 name = "hvac-dispatch-voice-agent"
 main = "src/index.js"
 compatibility_date = "2024-01-01"
+workers_dev = true
+preview_urls = false
 
 [[kv_namespaces]]
 binding = "CALLS"
 id = "3fd8e79f3a2f4d66bc51dd1984a44694"
+
+[vars]
+VAPI_ASSISTANT_ID = "e979de0b-6552-4ccd-bcf4-6dfe9543ee1e"
+DEBUG_WEBHOOKS = "0"
+
+# Secrets (set with `npx wrangler secret put <NAME>`, never commit values):
+#   DASHBOARD_KEY        - required; dashboard sends it as a Bearer token
+#   VAPI_API_KEY         - VAPI private key, used by GET /calls
+#   VAPI_WEBHOOK_SECRET  - optional; if set, VAPI must send it as x-vapi-secret
